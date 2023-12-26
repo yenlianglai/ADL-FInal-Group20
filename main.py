@@ -5,9 +5,10 @@ nltk.download("stopwords")
 from diffusers import StableDiffusionPipeline
 from typing import List
 import pandas as pd
+import argparse
 import torch
 import re
-
+import os
 
 
 class ImageGenerator:
@@ -18,10 +19,8 @@ class ImageGenerator:
     def generate(self, prompt: str):
         assert isinstance(prompt, str)
         image = self.pipe(prompt).images[0]  
-        
-        img_name = prompt[-10:] + ".png"
-        image.save(img_name)
-        print(f"Image saved as {img_name}")
+        return image
+
 
 
 class PromptGenerator:
@@ -48,11 +47,12 @@ class PromptGenerator:
         return prompt
 
 
-class ComicGenerator:
-    def __init__(self, tokenizer, model, sd_model_id):
-        self.data = pd.read_csv("movie_plot.csv")
+class Pipeline:
+    def __init__(self, tokenizer, model, sd_model_id, data_path, output_path):
+        self.data = pd.read_csv(data_path)
         self.promptGenerator = PromptGenerator(tokenizer, model)
         self.imageGenerator = ImageGenerator(sd_model_id)
+        self.output_path = output_path
         
     def get_movie(self, title):
         matching_rows = self.data[self.data["Title"] == title]
@@ -102,30 +102,40 @@ class ComicGenerator:
     def generate(self, movie_title):
         plot_list = self.text_segmentation(movie_title)
         accumulated_section = ""
-        for section in plot_list:
+        for i, section in enumerate(plot_list):
             # accumulated_section += section
             prompt = self.promptGenerator.generate(section)
             print(f"prompt: {prompt}")
             image = self.imageGenerator.generate(movie_title + "style" + prompt[0])
-        
+            image.save(os.path.join(self.output_path, f"{movie_title}_{i}.png"))
+            print(f"Image saved as {movie_title}_{i}.png")
+
         print("Finished ✅")
                   
-tokenizer = AutoTokenizer.from_pretrained('alibaba-pai/pai-bloom-1b1-text2prompt-sd')
-model = AutoModelForCausalLM.from_pretrained('alibaba-pai/pai-bloom-1b1-text2prompt-sd').eval().cuda()
-sd_model_id = "runwayml/stable-diffusion-v1-5"
 
 
-# movie_title = "Toy Story 2"
-# generator = ComicGenerator(tokenizer, model, sd_model_id)
-# generator.generate(movie_title)
 
+if __name__ == "__main__":
 
-p = PromptGenerator(tokenizer, model)
-i = ImageGenerator(sd_model_id)
-
-input = '''
-Girl, Tatooed, long hair, long black hair, outgoing, hiking, Classical music, dark skin
-'''
-
-prompt = p.generate(input)
-i.generate(prompt[0])
+    parser = argparse.ArgumentParser(description='Generate images from text')
+    parser.add_argument('--movie_title', type=str, help='Movie title')
+    parser.add_argument('--data_path', type=str, help='Path to movie plot data')
+    parser.add_argument('--model_path', type=str, help='Path to model')
+    parser.add_argument('--sd_model_id', type=str, help='Stable Diffusion model ID')
+    parser.add_argument('--output_path', type=str, help='Path to output images')
+    args = parser.parse_args()
+    
+    movie_title = args.movie_title
+    data_path = args.data_path
+    model_path = args.model_path
+    sd_model_id = args.sd_model_id
+    output_path = args.output_path
+    
+    os.makedirs(output_path, exist_ok=True)
+    
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    model = AutoModelForCausalLM.from_pretrained(model_path).eval().cuda()
+    
+    
+    generator = Pipeline(tokenizer, model_path, sd_model_id, data_path, output_path)
+    generator.generate(movie_title)
