@@ -4,4 +4,4 @@ python3 ./main.py \
     --output_path ./finetuned \
     --sd_model_id stabilityai/stable-diffusion-2 \
     --data_path ./movie_plot.csv \
-    --movie_title "Space Jam" \
+    --movie_title "Fast & Furious" \
