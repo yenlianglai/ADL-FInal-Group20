@@ -109,6 +109,8 @@ class Pipeline:
             image = self.imageGenerator.generate(movie_title + "style" + prompt[0])
             image.save(os.path.join(self.output_path, f"{movie_title}_{i}.png"))
             print(f"Image saved as {movie_title}_{i}.png")
+        # image = self.imageGenerator.generate(movie_title)
+        # image.save(os.path.join(self.output_path, f"{movie_title}.png"))
 
         print("Finished ✅")
                   
