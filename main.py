@@ -2,7 +2,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from nltk.tokenize.texttiling import TextTilingTokenizer
 import nltk
 nltk.download("stopwords")
-from diffusers import StableDiffusionPipeline
+from diffusers import DiffusionPipeline
 from typing import List
 import pandas as pd
 import argparse
@@ -12,13 +12,14 @@ import os
 
 
 class ImageGenerator:
-    def __init__(self, model_id):
-        self.pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
+    def __init__(self, model_id, sd_lora_path):
+        self.pipe = DiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
+        self.pipe.load_lora_weights(sd_lora_path)
         self.pipe = self.pipe.to("cuda")
     
     def generate(self, prompt: str):
         assert isinstance(prompt, str)
-        image = self.pipe(prompt).images[0]  
+        image = self.pipe(prompt, num_inference_steps=30).images[0]  
         return image
 
 
@@ -48,10 +49,10 @@ class PromptGenerator:
 
 
 class Pipeline:
-    def __init__(self, tokenizer, model, sd_model_id, data_path, output_path):
+    def __init__(self, tokenizer, model, sd_model_id, sd_lora_path, data_path, output_path):
         self.data = pd.read_csv(data_path)
         self.promptGenerator = PromptGenerator(tokenizer, model)
-        self.imageGenerator = ImageGenerator(sd_model_id)
+        self.imageGenerator = ImageGenerator(sd_model_id, sd_lora_path)
         self.output_path = output_path
         
     def get_movie(self, title):
@@ -122,6 +123,7 @@ if __name__ == "__main__":
     parser.add_argument('--data_path', type=str, help='Path to movie plot data')
     parser.add_argument('--model_path', type=str, help='Path to model')
     parser.add_argument('--sd_model_id', type=str, help='Stable Diffusion model ID')
+    parser.add_argument('--sd_lora_path', type=str, help='Stable Diffusion lora path')
     parser.add_argument('--output_path', type=str, help='Path to output images')
     args = parser.parse_args()
     
@@ -129,6 +131,7 @@ if __name__ == "__main__":
     data_path = args.data_path
     model_path = args.model_path
     sd_model_id = args.sd_model_id
+    sd_lora_path = args.sd_lora_path
     output_path = args.output_path
     
     assert os.path.exists(data_path)
@@ -138,5 +141,5 @@ if __name__ == "__main__":
     model = AutoModelForCausalLM.from_pretrained(model_path).eval().cuda()
     
     
-    generator = Pipeline(tokenizer, model_path, sd_model_id, data_path, output_path)
+    generator = Pipeline(tokenizer, model_path, sd_model_id, sd_lora_path, data_path, output_path)
     generator.generate(movie_title)
