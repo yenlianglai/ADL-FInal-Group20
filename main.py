@@ -131,6 +131,7 @@ if __name__ == "__main__":
     sd_model_id = args.sd_model_id
     output_path = args.output_path
     
+    assert os.path.exists(data_path)
     os.makedirs(output_path, exist_ok=True)
     
     tokenizer = AutoTokenizer.from_pretrained(model_path)
